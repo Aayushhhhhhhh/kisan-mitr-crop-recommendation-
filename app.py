@@ -22,7 +22,7 @@ Enter your soil health card details to get scientific crop recommendations.
 @st.cache_resource
 def train_model():
     # Load Dataset from reliable GitHub source
-    url = "https://raw.githubusercontent.com/Gladiator07/Harvestify/master/Data-processed/crop_recommendation.csv"
+    url = "crop_recommendation.csv"
     df = pd.read_csv(url)
     
     # Split Data
