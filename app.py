@@ -1,9 +1,11 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, confusion_matrix
 
 # 1. Page Configuration
 st.set_page_config(page_title="KisanMitr: Crop Recommendation", layout="wide", page_icon="🌾")
@@ -16,9 +18,10 @@ Enter your soil health card details to get scientific crop recommendations.
 """)
 
 # 2. Load and Train Model
+# Cached so it runs fast after the first time
 @st.cache_resource
 def train_model():
-    # Load Dataset (Standard Indian Crop Recommendation Data)
+    # Load Dataset
     url = "https://raw.githubusercontent.com/Gladiator07/Harvestify/master/Data-processed/crop_recommendation.csv"
     df = pd.read_csv(url)
     
@@ -26,21 +29,23 @@ def train_model():
     X = df.drop('label', axis=1)
     y = df['label']
     
+    # 80% Train, 20% Test
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     
-    # Train Random Forest (Good for multi-class classification)
+    # Train Random Forest
     rf = RandomForestClassifier(n_estimators=20, random_state=42)
     rf.fit(X_train, y_train)
     
-    # Calculate Accuracy
+    # Calculate Metrics
     y_pred = rf.predict(X_test)
     acc = accuracy_score(y_test, y_pred)
     
-    return rf, acc
+    # Return model + Test Data for visualization
+    return rf, acc, y_test, y_pred
 
 # Train immediately
 with st.spinner("Analyzing Soil Data..."):
-    model, accuracy = train_model()
+    model, accuracy, y_test, y_pred = train_model()
 
 # 3. Sidebar Inputs (Soil Health Card Parameters)
 st.sidebar.header("🌱 Soil Health Card Data")
@@ -81,7 +86,7 @@ with col1:
         
         st.success(f"✅ Recommended Crop: **{crop.upper()}**")
         
-        # Contextual Info (Simple Rules)
+        # Contextual Info
         if crop in ['rice', 'jute', 'coffee']:
             st.info("ℹ️ Note: This crop requires high rainfall.")
         elif crop in ['chickpea', 'kidneybeans', 'mothbeans']:
@@ -91,8 +96,30 @@ with col1:
 
 with col2:
     st.metric(label="Model Accuracy", value=f"{accuracy:.1%}")
-    st.write("### How it works")
-    st.caption("The model uses a **Random Forest Classifier** trained on historical agricultural data including N-P-K values, rainfall patterns, and pH levels.")
-    
+    st.caption("Accuracy calculated on test set.")
+
+# 5. Technical Details (For Interviewers)
 st.divider()
-st.markdown("Developed for the **Indian Agriculture Sector**.")
+with st.expander("📊 View Technical Performance Details (Confusion Matrix)"):
+    st.markdown("### Model Evaluation")
+    st.write("This Confusion Matrix shows how the model performed on the Test Set (20% of data). The diagonal line represents correct predictions.")
+    
+    # Plot Confusion Matrix
+    cm = confusion_matrix(y_test, y_pred)
+    
+    # Create the heatmap
+    fig, ax = plt.subplots(figsize=(10, 6))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Greens', ax=ax)
+    plt.xlabel('Predicted')
+    plt.ylabel('Actual')
+    plt.title('Confusion Matrix Heatmap')
+    
+    # Render in Streamlit
+    st.pyplot(fig)
+    
+    st.markdown("""
+    **Interpretation:**
+    * **Diagonal Blocks:** Correct predictions.
+    * **Off-Diagonal Blocks:** Errors (e.g., if the model confused 'Rice' for 'Jute').
+    * Since the matrix is mostly diagonal, the **Random Forest** algorithm is highly effective for this dataset.
+    """)
