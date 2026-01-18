@@ -21,7 +21,7 @@ Enter your soil health card details to get scientific crop recommendations.
 # Cached so it runs fast after the first time
 @st.cache_resource
 def train_model():
-    # Load Dataset
+    # Load Dataset from reliable GitHub source
     url = "https://raw.githubusercontent.com/Gladiator07/Harvestify/master/Data-processed/crop_recommendation.csv"
     df = pd.read_csv(url)
     
@@ -40,12 +40,12 @@ def train_model():
     y_pred = rf.predict(X_test)
     acc = accuracy_score(y_test, y_pred)
     
-    # Return model + Test Data for visualization
-    return rf, acc, y_test, y_pred
+    # Return model + Test Data for visualization + Full DF for display
+    return rf, acc, y_test, y_pred, df
 
 # Train immediately
 with st.spinner("Analyzing Soil Data..."):
-    model, accuracy, y_test, y_pred = train_model()
+    model, accuracy, y_test, y_pred, full_df = train_model()
 
 # 3. Sidebar Inputs (Soil Health Card Parameters)
 st.sidebar.header("🌱 Soil Health Card Data")
@@ -100,26 +100,34 @@ with col2:
 
 # 5. Technical Details (For Interviewers)
 st.divider()
-with st.expander("📊 View Technical Performance Details (Confusion Matrix)"):
+
+# TAB 1: Performance Matrix
+with st.expander("📊 View Technical Performance (Confusion Matrix)"):
     st.markdown("### Model Evaluation")
     st.write("This Confusion Matrix shows how the model performed on the Test Set (20% of data). The diagonal line represents correct predictions.")
     
     # Plot Confusion Matrix
     cm = confusion_matrix(y_test, y_pred)
-    
-    # Create the heatmap
     fig, ax = plt.subplots(figsize=(10, 6))
     sns.heatmap(cm, annot=True, fmt='d', cmap='Greens', ax=ax)
     plt.xlabel('Predicted')
     plt.ylabel('Actual')
     plt.title('Confusion Matrix Heatmap')
-    
-    # Render in Streamlit
     st.pyplot(fig)
+
+# TAB 2: Dataset Viewer (Solves the 'Show me the data' problem)
+with st.expander("📂 View Raw Dataset (Source Data)"):
+    st.markdown("### Crop Recommendation Dataset")
+    st.write("This is the raw data used to train the Random Forest model.")
     
-    st.markdown("""
-    **Interpretation:**
-    * **Diagonal Blocks:** Correct predictions.
-    * **Off-Diagonal Blocks:** Errors (e.g., if the model confused 'Rice' for 'Jute').
-    * Since the matrix is mostly diagonal, the **Random Forest** algorithm is highly effective for this dataset.
-    """)
+    # Show first 100 rows
+    st.dataframe(full_df.head(100), height=300)
+    
+    # Download Button
+    csv = full_df.to_csv(index=False).encode('utf-8')
+    st.download_button(
+        label="📥 Download Dataset as CSV",
+        data=csv,
+        file_name='kisan_mitr_dataset.csv',
+        mime='text/csv',
+    )
